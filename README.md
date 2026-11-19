@@ -166,3 +166,5 @@ AI generated the first version of the project. I reviewed the result against the
 ## Postman collection
 
 Import `postman/library-book-api.postman_collection.json` into Postman, start the API with `npm run dev`, then run the collection in the listed order. The collection uses `baseUrl` (default `http://localhost:3000`); the create request saves `bookId` for the following requests.
+
+Run the collection with Newman: `npx newman run postman/library-book-api.postman_collection.json --env-var baseUrl=http://localhost:3000`.

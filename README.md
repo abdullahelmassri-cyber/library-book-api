@@ -1,28 +1,77 @@
 # Library Book API
 
-A small Express 5 API built with TypeScript, ESM, NodeNext, and Zod. Books are stored in memory and reset when the server restarts.
+A small Express 5 API built with TypeScript, ESM, NodeNext, Zod, Prisma 7,
+and PostgreSQL.
 
-## Install and run
+## Prerequisites
 
-```bash
+- Node.js 20.18+ or 22.9+ (the run scripts use `--env-file-if-exists`).
+- PostgreSQL 16 running locally, with a role that can create a database and
+  connect to it.
+
+## Database and environment setup
+
+From PowerShell, create the empty database (skip this if `library_db` already
+exists):
+
+```powershell
+$env:PGPASSWORD = "your-postgres-password"
+try {
+  & "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h localhost -U postgres -d postgres -c "CREATE DATABASE library_db;"
+} finally {
+  Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+}
+```
+
+Install dependencies, create your local environment file, and replace
+`YOUR_PASSWORD` in `.env` with the PostgreSQL password:
+
+```powershell
 npm install
-copy .env.example .env
+Copy-Item .env.example .env
+```
+
+`.env` is ignored by Git. Keep credentials there; do not put them in
+`.env.example`. The default database URL targets `library_db` on
+`localhost:5432`; keep the existing `PORT` entry.
+
+Apply committed migrations and generate the ignored Prisma Client before
+building (also required after cloning):
+
+```powershell
+npx prisma migrate deploy
+npx prisma generate
+```
+
+## Run and build
+
+For development:
+
+```powershell
 npm run dev
 ```
 
-On Mac/Linux, use `cp .env.example .env` instead. `.env` is gitignored and is not included in the repository. Set `PORT=3000` in your local `.env` file before starting the server.
+For a production build and run:
 
-Node.js 20.6+ is required for native environment-file support. The scripts use `--env-file-if-exists`, which requires Node.js 20.18+ (or 22.9+).
-
-To run a production build:
-
-```bash
+```powershell
 npm run typecheck
 npm run build
 npm start
 ```
 
+The server gracefully closes its HTTP listener and disconnects Prisma on
+SIGINT or SIGTERM.
+
 ## Endpoints
+
+| Method | Path | Success |
+| --- | --- | --- |
+| `GET` | `/health` | `200` |
+| `GET` | `/api/books` | `200` |
+| `GET` | `/api/books/:id` | `200`; missing book `404` |
+| `POST` | `/api/books` | `201`; invalid body `400` |
+| `PATCH` | `/api/books/:id` | `200`; invalid body `400`; missing book `404` |
+| `DELETE` | `/api/books/:id` | `204`; missing book `404` |
 
 ### `GET /health`
 
@@ -43,7 +92,7 @@ Example `200` response:
 ```json
 [
   {
-    "id": "a-book-id",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "title": "The Hobbit",
     "author": "J. R. R. Tolkien",
     "genre": "Fantasy",
@@ -57,14 +106,14 @@ Example `200` response:
 Returns one book.
 
 ```http
-GET /api/books/a-book-id
+GET /api/books/550e8400-e29b-41d4-a716-446655440000
 ```
 
 Example `200` response:
 
 ```json
 {
-  "id": "a-book-id",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "The Hobbit",
   "author": "J. R. R. Tolkien",
   "genre": "Fantasy",
@@ -99,7 +148,7 @@ Example `201` response:
 
 ```json
 {
-  "id": "a-book-id",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "The Hobbit",
   "author": "J. R. R. Tolkien",
   "genre": "Fantasy",
@@ -112,7 +161,7 @@ Example `201` response:
 Updates one or more provided fields. Fields use the same validation as create; `available` must be a boolean. An empty update is invalid.
 
 ```http
-PATCH /api/books/a-book-id
+PATCH /api/books/550e8400-e29b-41d4-a716-446655440000
 Content-Type: application/json
 ```
 
@@ -124,7 +173,7 @@ Example `200` response:
 
 ```json
 {
-  "id": "a-book-id",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "title": "The Hobbit",
   "author": "J. R. R. Tolkien",
   "genre": "Fantasy",
@@ -135,7 +184,7 @@ Example `200` response:
 ### `DELETE /api/books/:id`
 
 ```http
-DELETE /api/books/a-book-id
+DELETE /api/books/550e8400-e29b-41d4-a716-446655440000
 ```
 
 Deletes one book and returns `204` with no body.
@@ -152,16 +201,10 @@ Malformed JSON returns `400`:
 { "error": { "message": "Invalid JSON" } }
 ```
 
-## How I used AI
+## AI usage
 
-AI generated the first version of the project. I reviewed the result against the lesson's checklist. I tested the endpoints with scripted HTTP requests, not Postman; a Postman collection is included in the repository.
-
-### Issues I found and fixed myself
-
-- I corrected the README: `.env` is gitignored and is absent from a fresh clone.
-- I changed the dev/start scripts to `--env-file-if-exists` so a missing `.env` reaches PORT validation instead of failing in Node's CLI.
-- I removed the unwanted AI `Co-authored-by` trailer from the first commit.
-- I checked that controllers contain no data operations, services hold the logic, and POST/PATCH pass validated `result.data` rather than `req.body`.
+AI assistance during the original project and this database integration is
+described in [docs/AI_USAGE.md](docs/AI_USAGE.md).
 
 ## Postman collection
 

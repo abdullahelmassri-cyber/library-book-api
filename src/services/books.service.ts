@@ -1,5 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { Prisma } from "../generated/prisma/client.js";
 import { NotFoundError } from "../errors.js";
+import { prisma } from "../lib/prisma.js";
 
 export type Book = {
   id: string;
@@ -13,50 +15,59 @@ export type NewBook = Omit<Book, "id">;
 
 export type BookUpdate = Partial<Omit<Book, "id">>;
 
-const books: Book[] = [];
+function assertUuidId(id: string): void {
+  const result = z.string().uuid().safeParse(id);
 
-export function listBooks(): Book[] {
-  return [...books];
+  if (!result.success || id !== id.toLowerCase()) {
+    throw new NotFoundError("Book not found");
+  }
 }
 
-export function getBookById(id: string): Book {
-  const book = books.find((item) => item.id === id);
+async function mapRecordNotFound<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      throw new NotFoundError("Book not found");
+    }
 
-  if (!book) {
+    throw error;
+  }
+}
+
+export async function listBooks(): Promise<Book[]> {
+  return prisma.book.findMany();
+}
+
+export async function getBookById(id: string): Promise<Book> {
+  assertUuidId(id);
+  const book = await prisma.book.findUnique({ where: { id } });
+
+  if (book === null) {
     throw new NotFoundError("Book not found");
   }
 
   return book;
 }
 
-export function createBook(input: NewBook): Book {
-  const book: Book = {
-    id: randomUUID(),
-    ...input,
-  };
-
-  books.push(book);
-  return book;
+export async function createBook(input: NewBook): Promise<Book> {
+  return prisma.book.create({ data: input });
 }
 
-export function updateBook(id: string, changes: BookUpdate): Book {
-  const index = books.findIndex((book) => book.id === id);
-
-  if (index === -1) {
-    throw new NotFoundError("Book not found");
-  }
-
-  const book = { ...books[index], ...changes };
-  books[index] = book;
-  return book;
+export async function updateBook(
+  id: string,
+  changes: BookUpdate,
+): Promise<Book> {
+  assertUuidId(id);
+  return mapRecordNotFound(() =>
+    prisma.book.update({ where: { id }, data: changes }),
+  );
 }
 
-export function deleteBook(id: string): void {
-  const index = books.findIndex((book) => book.id === id);
-
-  if (index === -1) {
-    throw new NotFoundError("Book not found");
-  }
-
-  books.splice(index, 1);
+export async function deleteBook(id: string): Promise<void> {
+  assertUuidId(id);
+  await mapRecordNotFound(() => prisma.book.delete({ where: { id } }));
 }

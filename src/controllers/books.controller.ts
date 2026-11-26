@@ -27,15 +27,15 @@ const updateBookSchema = z
 
 type BookParams = { id: string };
 
-export const listBooks: RequestHandler = (_req, res) => {
-  res.json(listBooksService());
+export const listBooks: RequestHandler = async (_req, res) => {
+  res.json(await listBooksService());
 };
 
-export const getBookById: RequestHandler<BookParams> = (req, res) => {
-  res.json(getBookByIdService(req.params.id));
+export const getBookById: RequestHandler<BookParams> = async (req, res) => {
+  res.json(await getBookByIdService(req.params.id));
 };
 
-export const createBook: RequestHandler = (req, res, next) => {
+export const createBook: RequestHandler = async (req, res, next) => {
   const result = createBookSchema.safeParse(req.body);
 
   if (!result.success) {
@@ -43,10 +43,14 @@ export const createBook: RequestHandler = (req, res, next) => {
     return;
   }
 
-  res.status(201).json(createBookService(result.data));
+  res.status(201).json(await createBookService(result.data));
 };
 
-export const updateBook: RequestHandler<BookParams> = (req, res, next) => {
+export const updateBook: RequestHandler<BookParams> = async (
+  req,
+  res,
+  next,
+) => {
   const result = updateBookSchema.safeParse(req.body);
 
   if (!result.success) {
@@ -54,10 +58,10 @@ export const updateBook: RequestHandler<BookParams> = (req, res, next) => {
     return;
   }
 
-  res.json(updateBookService(req.params.id, result.data));
+  res.json(await updateBookService(req.params.id, result.data));
 };
 
-export const deleteBook: RequestHandler<BookParams> = (req, res) => {
-  deleteBookService(req.params.id);
+export const deleteBook: RequestHandler<BookParams> = async (req, res) => {
+  await deleteBookService(req.params.id);
   res.status(204).end();
 };
